@@ -1,0 +1,5 @@
+structure-win/x64/
+*.VC.db
+*.VC.opendb
+data*
+seed.txt
