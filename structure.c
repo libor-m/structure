@@ -3300,6 +3300,7 @@ int main (int argc, char *argv[])
   /* this is for DIC */
   sumIndLikes = malloc(NUMINDS*sizeof(double));
   indLikesNorm = malloc(NUMINDS*sizeof(double));
+  like = 0;
 
   if ((Translation == NULL) || (NumAlleles == NULL) || (Z == NULL) || (Z1 == NULL) || (Q == NULL) ||
       (P == NULL) || (LogP==NULL) || (R == NULL) || (sumR == NULL) || (varR == NULL) || (Epsilon == NULL) ||
