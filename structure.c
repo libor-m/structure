@@ -948,7 +948,7 @@ void UpdateAlphaLocPrior(double *Q, double *Alpha, double *LocPrior,
       diff += (newalpha-oldalpha)*LocPrior[0]*log(Alpha[AlphaPos(loc,pop)]) - mylgamma(newalpha*LocPrior[0]) + mylgamma(oldalpha*LocPrior[0]) + (newalpha-oldalpha)*LocPrior[0]*log(LocPrior[0]);
     }
 
-    if (diff > 0.0 || RandomReal(0,1) < exp(diff)) {
+    if (diff > 0.0 || rnd() < exp(diff)) {
       Alpha[pop] = newalpha;
     }
   }
@@ -968,7 +968,7 @@ void UpdateAlphaLocPrior(double *Q, double *Alpha, double *LocPrior,
       Alpha[pos+pop] = newalpha;
       new_lprobQ = LogProbQ_LocPrior_loc(Q, &Alpha[pos], Individual, loc);
       diff = (globalpha*LocPrior[0]-1.0)*log(newalpha/oldalpha) - LocPrior[0]*(newalpha-oldalpha) + new_lprobQ - lprobQ;
-      if (diff >= 0.0 || RandomReal(0,1) < exp(diff)) {
+      if (diff >= 0.0 || rnd() < exp(diff)) {
         lprobQ = new_lprobQ;
       } else {
         Alpha[pos+pop] = oldalpha;
@@ -1190,8 +1190,20 @@ GetNumFromPop (int *NumAFromPop, int *Geno, int *Z, int loc, int numalleles,stru
   /*Fill in the number of each allele from each pop */
   int ind, line, pop, allele;
   /* int genpos; */
-  int allelevalue;
+  int allelevalue, missingCode;
   int popvalue;
+  
+  
+  // substitute globals with locals to help the optimizer
+  size_t nLines, nLoci, maxAlleles, nInds;
+  nLines = LINES;
+  nLoci = NUMLOCI;
+  nInds = NUMINDS;
+  missingCode = MISSING;
+  maxAlleles = MAXALLELES;
+#define GenPosL(ind,line,loc) ((ind)*(nLines)*(nLoci)+(line)*(nLoci)+(loc))	/*Geno */
+#define ZPosL(ind,line,loc) ((ind)*(nLines)*(nLoci)+(line)*(nLoci)+(loc))	/* Z */
+#define NumAFromPopPosL(pop,allele) ((pop)*(maxAlleles)+(allele))	/* NumAFromPop */
 
   for (pop = 0; pop < MAXPOPS; pop++) {
     for (allele = 0; allele < numalleles; allele++) {
@@ -1199,27 +1211,28 @@ GetNumFromPop (int *NumAFromPop, int *Geno, int *Z, int loc, int numalleles,stru
     }
   }
 
-  if (PFROMPOPFLAGONLY) {     /*this option uses only individuals with POPFLAG=1 to update P*/
-    for (ind = 0; ind < NUMINDS; ind++) {
-      if (Individual[ind].PopFlag == 1) {    /*individual must have popflag turned on*/
-        for (line = 0; line < LINES; line++) {
-          popvalue = Z[ZPos (ind, line, loc)];
-          allelevalue = Geno[GenPos (ind, line, loc)];
 
-          if ((allelevalue != MISSING) && (popvalue != UNASSIGNED)) {
-            NumAFromPop[NumAFromPopPos (popvalue, allelevalue)]++;
+  if (PFROMPOPFLAGONLY) {     /*this option uses only individuals with POPFLAG=1 to update P*/
+    for (ind = 0; ind < nInds; ind++) {
+      if (Individual[ind].PopFlag == 1) {    /*individual must have popflag turned on*/
+        for (line = 0; line < nLines; line++) {
+          popvalue = Z[ZPosL (ind, line, loc)];
+          allelevalue = Geno[GenPosL (ind, line, loc)];
+
+          if ((allelevalue != missingCode) && (popvalue != UNASSIGNED)) {
+            NumAFromPop[NumAFromPopPosL (popvalue, allelevalue)]++;
           }
         }
       }
     }
   } else {       /*standard update--use everybody to update P */
-    for (ind = 0; ind < NUMINDS; ind++) {
-      for (line = 0; line < LINES; line++) {
-        popvalue = Z[ZPos (ind, line, loc)];
-        allelevalue = Geno[GenPos (ind, line, loc)];
+    for (ind = 0; ind < nInds; ind++) {
+      for (line = 0; line < nLines; line++) {
+        popvalue = Z[ZPosL (ind, line, loc)];
+        allelevalue = Geno[GenPosL (ind, line, loc)];
 
-        if ((allelevalue != MISSING) && (popvalue != UNASSIGNED)) {
-          NumAFromPop[NumAFromPopPos (popvalue, allelevalue)]++;
+        if ((allelevalue != missingCode) && (popvalue != UNASSIGNED)) {
+          NumAFromPop[NumAFromPopPosL (popvalue, allelevalue)]++;
         }
       }
     }
@@ -1538,7 +1551,7 @@ void UpdateQMetro (int *Geno, int *PreGeno, double *Q, double *P,
       logdiff += CalcLikeInd (Geno, PreGeno, TestQ, P, ind, Recessive);  /*likelihood bit */
       logdiff -= CalcLikeInd (Geno, PreGeno, CurrentQ, P, ind, Recessive);
 
-      randomnum = RandomReal (0.0, 1.0);
+      randomnum = rnd();
       if (randomnum < exp (logdiff)) {    /*accept */
         for (pop = 0; pop < MAXPOPS; pop++) {
           Q[QPos (ind, pop)] = TestQ[pop];
@@ -1961,7 +1974,7 @@ void UpdateLocPriorNoAdmix(double *Q, double *LocPrior,
       }
     }
 
-    if (logdiff >= 0.0 || RandomReal(0,1) < exp(logdiff)) {
+    if (logdiff >= 0.0 || rnd() < exp(logdiff)) {
       LocPrior[0] = newpp;
     }
   }
@@ -1986,7 +1999,7 @@ void UpdateLocPriorNoAdmix(double *Q, double *LocPrior,
                               (e2-eta[pop2])*log(LocPrior[LocPriorPos(i, pop2)]));
     }
 
-    if (logdiff >= 0.0 || RandomReal(0, 1) < exp(logdiff)) {
+    if (logdiff >= 0.0 || rnd() < exp(logdiff)) {
       eta[pop1] = e1;
       eta[pop2] = e2;
     }
@@ -2008,7 +2021,7 @@ void UpdateLocPriorNoAdmix(double *Q, double *LocPrior,
           (LocPrior[0]*eta[pop2]-1.0)*(log(g2)-log(LocPrior[LocPriorPos(loc, pop2)])) +
           dcount[loc][pop1]*(log(g1)-log(LocPrior[LocPriorPos(loc, pop1)])) +
           dcount[loc][pop2]*(log(g2)-log(LocPrior[LocPriorPos(loc, pop2)]));
-      if (logdiff >= 0.0 || RandomReal(0,1)  < exp(logdiff)) {
+      if (logdiff >= 0.0 || rnd()  < exp(logdiff)) {
         LocPrior[LocPriorPos(loc, pop1)] = g1;
         LocPrior[LocPriorPos(loc, pop2)] = g2;
       }
@@ -2045,7 +2058,7 @@ void UpdateLocPriorAdmix(double *Q, double *LocPrior, double *Alpha, struct IND 
                 globalpha*currPP*log(currPP);
       }
     }
-    if (diff > 0.0 || RandomReal(0, 1) < exp(diff)) {
+    if (diff > 0.0 || rnd() < exp(diff)) {
       LocPrior[0] = newPP;
     }
   }
@@ -2266,57 +2279,114 @@ UpdateZ (int *Z, double *SiteBySiteSum, double *Q, double *P, int *Geno,int rep)
   double sum=0.0, sum2=0.0;
   int allele;
 
-  Cutoffs = calloc (MAXPOPS, sizeof (double));
-  Cutoffs2 = calloc (MAXPOPS, sizeof (double));
+  // substitute globals with locals to help the optimizer
+  int missingCode;
+  size_t nLines, nLoci, maxAlleles, nInds, maxPops;
+  int bSiteBySite_burnIn, bPosterior;
+  bPosterior = POSTERIOR;
+  bSiteBySite_burnIn = SITEBYSITE && (rep + 1 > BURNIN);
+  nLines = LINES;
+  nLoci = NUMLOCI;
+  nInds = NUMINDS;
+  missingCode = MISSING;
+  maxAlleles = MAXALLELES;
+  maxPops = MAXPOPS;
+
+#define GenPosL(ind,line,loc) ((ind)*(nLines)*(nLoci)+(line)*(nLoci)+(loc))	/*Geno */
+#define ZPosL(ind,line,loc) ((ind)*(nLines)*(nLoci)+(line)*(nLoci)+(loc))	/* Z */
+#define NumAFromPopPosL(pop,allele) ((pop)*(maxAlleles)+(allele))	/* NumAFromPop */
+#define SiteBySiteSumPosL(ind,line,loc,pop) ((ind)*(nLines)*(nLoci)*(maxPops)+(line)*(nLoci)*(maxPops)+(loc)*(maxPops)+(pop))
+#define PPosL(loc,pop,allele) ((loc)*(maxPops)*(maxAlleles)+(pop)*(maxAlleles)+(allele))
+#define QPosL(ind,pop) ((ind)*(maxPops)+(pop))	/* Q */
+
+  Cutoffs = calloc (maxPops, sizeof (double));
+  Cutoffs2 = calloc (maxPops, sizeof (double));
   if (Cutoffs == NULL || Cutoffs2 == NULL) {
     printf ("WARNING: unable to allocate array space in UpdateZ\n");
     Kill ();
   }
 
-  for (ind = 0; ind < NUMINDS; ind++) {  /*go through all alleles in sample */
-    for (line = 0; line < LINES; line++) {
-      for (loc = 0; loc < NUMLOCI; loc++) {
-        allele = Geno[GenPos (ind, line, loc)];
+  if (!bSiteBySite_burnIn) {
+	  for (ind = 0; ind < nInds; ind++) {  /*go through all alleles in sample */
+		  for (line = 0; line < nLines; line++) {
+			  for (loc = 0; loc < nLoci; loc++) {
+				  allele = Geno[GenPosL(ind, line, loc)];
 
-        if (allele == MISSING) {   /*Missing Data */
-          Z[ZPos (ind, line, loc)] = UNASSIGNED;
-          if (SITEBYSITE && rep+1>BURNIN) {
-            sum=0.0;
-            sum2=1.0;
-            for (pop=0;pop<MAXPOPS;pop++) {
-              Cutoffs[pop]=Q[QPos(ind,pop)];
-              sum+=Cutoffs[pop];
-            }
-          }
-        } else {
-          /*Data present */
-          sum = 0.0;    /*compute prob of each allele being from each pop */
-          sum2 = 0.0;
-          for (pop = 0; pop < MAXPOPS; pop++) {
-            Cutoffs[pop] = Q[QPos (ind, pop)] * P[PPos (loc, pop, allele)];
-            sum += Cutoffs[pop];
-          }
+				  if (allele == missingCode) {   /*Missing Data */
+					  Z[ZPosL(ind, line, loc)] = UNASSIGNED;
+				  }
+				  else {
+					  /*Data present */
+					  sum = 0.0;    /*compute prob of each allele being from each pop */
+					  for (pop = 0; pop < maxPops; pop++) {
+						  Cutoffs[pop] = Q[QPosL(ind, pop)] * P[PPosL(loc, pop, allele)];
+						  sum += Cutoffs[pop];
+					  }
+					  Z[ZPosL(ind, line, loc)] = PickAnOption(maxPops, sum, Cutoffs);
+				  }
+			  }
+		  }
+	  }
+  }
+  // !bSiteBySite_burnIn
+  else {
+	  for (ind = 0; ind < nInds; ind++) {  /*go through all alleles in sample */
+		  for (line = 0; line < nLines; line++) {
+			  for (loc = 0; loc < nLoci; loc++) {
+				  allele = Geno[GenPosL(ind, line, loc)];
+				  if (bPosterior) {
+					  if (allele == missingCode) {   /*Missing Data */
+						  Z[ZPosL(ind, line, loc)] = UNASSIGNED;
+						  sum = 0.0;
+						  for (pop = 0;pop < maxPops;pop++) {
+							  Cutoffs[pop] = Q[QPosL(ind, pop)];
+							  sum += Cutoffs[pop];
+						  }
+					  }
+					  else {
+						  /*Data present */
+						  sum = 0.0;    /*compute prob of each allele being from each pop */
+						  for (pop = 0; pop < maxPops; pop++) {
+							  Cutoffs[pop] = Q[QPosL(ind, pop)] * P[PPosL(loc, pop, allele)];
+							  sum += Cutoffs[pop];
+						  }
+						  Z[ZPosL(ind, line, loc)] = PickAnOption(maxPops, sum, Cutoffs);
+					  }
 
-          if (SITEBYSITE && rep+1>BURNIN && !POSTERIOR) {
-            for (pop=0;pop<MAXPOPS;pop++) {
-              Cutoffs2[pop] = P[PPos (loc, pop, allele)];
-              sum2 += Cutoffs2[pop];
-            }
-          }
-          Z[ZPos (ind, line, loc)] = PickAnOption (MAXPOPS, sum, Cutoffs);
-        }
-        
-        if (SITEBYSITE && rep+1>BURNIN) {
-          for (pop=0;pop<MAXPOPS;pop++) {
-            if (POSTERIOR) {
-              SiteBySiteSum[SiteBySiteSumPos (ind, line, loc, pop)] += Cutoffs[pop]/sum;
-            } else {
-              SiteBySiteSum[SiteBySiteSumPos (ind, line, loc, pop)] += Cutoffs2[pop]/sum2;
-            }
-          }
-        }
-      }
-    }
+					  for (pop = 0;pop < maxPops;pop++) {
+						  SiteBySiteSum[SiteBySiteSumPosL(ind, line, loc, pop)] += Cutoffs[pop] / sum;
+					  }
+				  }
+				  // !bPosterior
+				  else {
+					  if (allele == missingCode) {   /*Missing Data */
+						  Z[ZPosL(ind, line, loc)] = UNASSIGNED;
+						  sum2 = 1.0;
+					  }
+					  else {
+						  /*Data present */
+						  sum = 0.0;    /*compute prob of each allele being from each pop */
+						  sum2 = 0.0;
+						  for (pop = 0; pop < maxPops; pop++) {
+							  Cutoffs[pop] = Q[QPosL(ind, pop)] * P[PPosL(loc, pop, allele)];
+							  sum += Cutoffs[pop];
+						  }
+
+							for (pop = 0;pop < maxPops;pop++) {
+								Cutoffs2[pop] = P[PPosL(loc, pop, allele)];
+								sum2 += Cutoffs2[pop];
+							}
+						  Z[ZPosL(ind, line, loc)] = PickAnOption(maxPops, sum, Cutoffs);
+					  }
+
+					  for (pop = 0;pop < maxPops;pop++) {
+						  SiteBySiteSum[SiteBySiteSumPosL(ind, line, loc, pop)] += Cutoffs2[pop] / sum2;
+					  }
+
+				  }
+			  }
+		  }
+	  }
   }
 
   free (Cutoffs);
@@ -2820,7 +2890,7 @@ UpdateZandSingleR (int *Z, double *SiteBySiteSum, double *Q, double *P, int *Gen
 
   }
   /*printf("% .3E % 3E % .8E % .8E % .5E\n",trialR,R[0],trialloglikelihood,currentloglikelihood,exp (trialloglikelihood - currentloglikelihood)); */
-  if (RandomReal (0.0, 1.0) < exp (trialloglikelihood - currentloglikelihood)) {  /*Accept */
+  if (rnd() < exp (trialloglikelihood - currentloglikelihood)) {  /*Accept */
     R[0] = trialR;
     /*currentloglikelihood=trialloglikelihood;  commented out by JKP--see email from Daniel 9 Dec 02*/
   }
@@ -2885,7 +2955,7 @@ UpdateZandR (int *Z, double *SiteBySiteSum, double *Q, double *P, int *Geno,
     trialR=exp(2.30259*logtrialR);
     trialloglikelihood = Forward (Z, IndividualQ, P, Geno, trialR, ind, RTransitProb, Mapdistance, Phase,Phasemodel);
     /*printf("% .3E % 3E % .8E % .8E % .5E\n",trialR,R[ind],trialloglikelihood,currentloglikelihood,exp (trialloglikelihood - currentloglikelihood)); */
-    if (RandomReal (0.0, 1.0) < exp (trialloglikelihood - currentloglikelihood)) {        /*Accept */
+    if (rnd() < exp (trialloglikelihood - currentloglikelihood)) {        /*Accept */
       R[ind] = trialR;
       sumlikelihood+=trialloglikelihood;
       if (sumindlike!=NULL) {
@@ -2920,7 +2990,6 @@ UpdateQMetroRecombine (int *Geno, double *Q, int *Z, double *P,
   double *TestQ;                /*[MAXPOPS]; */
   int pop;
   double logdiff;
-  double randomnum;
   int ind;
   int numhits = 0;
   /*  int i, ok; */
@@ -2993,8 +3062,7 @@ UpdateQMetroRecombine (int *Geno, double *Q, int *Z, double *P,
       }
       logdiff -= Forward (Z, IndividualQ, P, Geno, R[ind], ind, RTransitProb, Mapdistance, Phase,Phasemodel);
 
-      randomnum = RandomReal (0.0, 1.0);
-      if (randomnum < exp (logdiff)) {    /*accept */
+      if (rnd() < exp (logdiff)) {    /*accept */
         for (pop = 0; pop < MAXPOPS; pop++) {
           Q[QPos (ind, pop)] = TestQ[pop];
         }
